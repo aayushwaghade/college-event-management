@@ -1,0 +1,32 @@
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+*.env
+
+# Local Database Credentials & Dumps
+*.local.sql
+*.bak
+
+# Vercel Configuration & Build artifacts
+.vercel
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Temporary / Scratch Files
+scratch/
+*.log
+*.tmp
+
+# XAMPP / Local Server Logs
+access.log
+error.log
