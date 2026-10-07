@@ -18,6 +18,9 @@ $db_ssl  = getenv('DB_SSL_CA') ?: ($_ENV['DB_SSL_CA'] ?? null);
 // Determine if we are running with a remote cloud database
 $is_cloud_db = ($db_host !== 'localhost' && $db_host !== '127.0.0.1');
 
+// Disable strict exceptions so connection errors can be handled gracefully
+mysqli_report(MYSQLI_REPORT_OFF);
+
 // 2. Initialize MySQLi
 $conn = mysqli_init();
 
@@ -45,17 +48,30 @@ if ($is_cloud_db) {
 }
 
 // 3. Connect to Database
-$flags = $is_cloud_db ? MYSQLI_CLIENT_SSL : 0;
-$connected = @mysqli_real_connect($conn, $db_host, $db_user, $db_pass, $db_name, $db_port, NULL, $flags);
+$connected = false;
+$error_msg = '';
 
-// Fallback attempt without explicit SSL flags if provider does opportunistic TLS
-if (!$connected && $is_cloud_db) {
-    $connected = @mysqli_real_connect($conn, $db_host, $db_user, $db_pass, $db_name, $db_port);
+try {
+    $flags = $is_cloud_db ? MYSQLI_CLIENT_SSL : 0;
+    $connected = @mysqli_real_connect($conn, $db_host, $db_user, $db_pass, $db_name, $db_port, NULL, $flags);
+
+    // Fallback attempt without explicit SSL flags if provider does opportunistic TLS
+    if (!$connected && $is_cloud_db) {
+        $connected = @mysqli_real_connect($conn, $db_host, $db_user, $db_pass, $db_name, $db_port);
+    }
+    if (!$connected) {
+        $error_msg = mysqli_connect_error();
+    }
+} catch (Throwable $e) {
+    $connected = false;
+    $error_msg = $e->getMessage();
 }
 
 // 4. Verify Connection
 if (!$connected) {
-    $error_msg = mysqli_connect_error();
+    if (empty($error_msg)) {
+        $error_msg = mysqli_connect_error() ?: "Unable to connect to MySQL server at $db_host:$db_port";
+    }
     $env_label = $is_cloud_db ? "Production Cloud Database ($db_host:$db_port)" : "Local XAMPP (localhost:3306)";
     
     die("<div style='padding:24px;margin:20px auto;max-width:600px;background:#FEF2F2;color:#991B1B;border:1px solid #F87171;border-radius:10px;font-family:system-ui,-apple-system,sans-serif;'>
